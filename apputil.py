@@ -35,31 +35,28 @@ def group_survival_rates(df=None):
     if df is None:
         df = survival_demographics()
 
-    # Fill missing Age temporarily for pd.cut
-    df["Age_filled"] = df["Age"].fillna(-1)
+    # Drop rows with missing Age
+    df = df.dropna(subset=["Age"])
 
-    # Define age groups, assign "Missing" for -1
-    age_bins = [-1, 12, 19, 59, float("inf")]
+    # Correct age bins
+    age_bins = [0, 12, 19, 59, float("inf")]
     age_labels = ["Child", "Teen", "Adult", "Senior"]
+
     df["age_group"] = pd.cut(
-        df["Age_filled"],
+        df["Age"],
         bins=age_bins,
         labels=age_labels,
-        right=True,
-        include_lowest=True,
-        ordered=True
+        right=True,  # Include upper bound
+        include_lowest=True
     )
 
-    # Drop "Missing" rows
-    df = df.dropna(subset=["age_group"])
-
-    # Aggregate existing groups
-    summary_table = df.groupby(["pclass", "sex", "age_group"], observed=True)["Survived"].agg(
+    # Group by pclass, sex, age_group
+    summary_table = df.groupby(["pclass", "sex", "age_group"])["Survived"].agg(
         n_passengers="count",
         n_survivors="sum"
     ).reset_index()
 
-    # Create all combinations
+    # All combinations
     pclass_vals = [1, 2, 3]
     sex_vals = ["male", "female"]
     age_group_vals = ["Child", "Teen", "Adult", "Senior"]
@@ -75,6 +72,8 @@ def group_survival_rates(df=None):
     # Ensure correct types
     summary_table["n_passengers"] = summary_table["n_passengers"].astype(int)
     summary_table["n_survivors"] = summary_table["n_survivors"].astype(int)
+
+    # Survival rate
     summary_table["survival_rate"] = (summary_table["n_survivors"] / summary_table["n_passengers"].replace(0, 1)).round(3)
     summary_table.loc[summary_table["n_passengers"] == 0, "survival_rate"] = 0
 
@@ -271,11 +270,3 @@ def last_names():
     name_counts = df["last_name"].value_counts().sort_values(ascending=False)
 
     return name_counts
-
-
-#if __name__ == "__main__":
-#    print("Quick test of group_survival_rates with missing groups...")
-#    summary = group_survival_rates()
-#    print("\nFull summary shape:", summary.shape)
-#    print("\nCheck for pclass=2, sex=female, age_group=Senior:")
-#    print(summary[(summary["pclass"] == 2) & (summary["sex"] == "female") & (summary["age_group"] == "Senior")])
