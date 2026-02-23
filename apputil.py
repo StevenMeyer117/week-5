@@ -10,7 +10,7 @@ def survival_demographics():
     url = "https://raw.githubusercontent.com/leontoddjohnson/datasets/main/data/titanic.csv"
     df = pd.read_csv(url)
 
-    # Rename columns early to match Gradescope expectations
+    # Rename columns
     df = df.rename(columns={"Pclass": "pclass", "Sex": "sex"})
 
     age_bins = [0, 13, 20, 60, float("inf")]
@@ -30,11 +30,17 @@ def survival_demographics():
 
 def group_survival_rates(df=None):
     """
-    Groups by pclass, sex, age_group and computes survival stats.
+    Groups the Titanic passengers by pclass, sex, and age_group.
+    Computes count of passengers, number of survivors, and survival rate.
+    Includes missing combinations with n_passengers=0.
     """
     if df is None:
         df = survival_demographics()
 
+    # Rename
+    df = df.rename(columns={"Pclass": "pclass", "Sex": "sex"})
+
+    # Group and aggregate
     summary_table = (
         df.groupby(["pclass", "sex", "age_group"], observed=True)["Survived"]
         .agg(
@@ -47,6 +53,28 @@ def group_survival_rates(df=None):
 
     summary_table["survival_rate"] = summary_table["survival_rate"].round(3)
 
+    # Create all possible combinations (pclass 1-3, sex male/female, age_group 4 categories)
+    pclass_vals = [1, 2, 3]
+    sex_vals = ["male", "female"]
+    age_group_vals = ["Child", "Teen", "Adult", "Senior"]
+
+    # Create full MultiIndex
+    full_index = pd.MultiIndex.from_product(
+        [pclass_vals, sex_vals, age_group_vals],
+        names=["pclass", "sex", "age_group"]
+    )
+
+    # Reindex to include all combinations
+    summary_table = summary_table.set_index(["pclass", "sex", "age_group"])
+    summary_table = summary_table.reindex(full_index, fill_value=0)
+
+    # Fill NaN survival_rate with 0 (no survivors if no passengers)
+    summary_table["survival_rate"] = summary_table["survival_rate"].fillna(0)
+
+    # Reset index to flat columns
+    summary_table = summary_table.reset_index()
+
+    # Sort for readability
     summary_table = summary_table.sort_values(["pclass", "sex", "age_group"])
 
     return summary_table
@@ -165,7 +193,7 @@ def visualize_families():
     return fig
 
 
-# Exercise 2 - Step 1 + Steps 2 & 3 combined (to satisfy Gradescope 2.1)
+# Exercise 2 - Step 1 + Steps 2 & 3 combined
 def family_groups():
     """
     Loads the Titanic dataset, adds 'family_size', and returns grouped summary
@@ -176,7 +204,7 @@ def family_groups():
 
     df["family_size"] = df["SibSp"] + df["Parch"] + 1
 
-    # Rename Pclass early
+    # Rename Pclass
     df = df.rename(columns={"Pclass": "pclass"})
 
     # Group and compute required columns
@@ -200,7 +228,7 @@ def family_groups():
     return summary
 
 
-# Exercise 2 - Step 4 (unchanged, already passing)
+# Exercise 2 - Step 4
 def last_names():
     """
     Extracts the last name from each passenger's Name column and returns
@@ -216,14 +244,14 @@ def last_names():
     return name_counts
 
 
-# Optional test block (safe to keep or remove)
-if __name__ == "__main__":
-    print("Quick test...")
-    df = survival_demographics()
-    print("age_group dtype:", df["age_group"].dtype)
-
-    summary = group_survival_rates(df)
-    print("\nSurvival summary head:\n", summary.head())
-
-    fare_summary = family_groups()
-    print("\nFamily fare summary head:\n", fare_summary.head())
+#test block
+#if __name__ == "__main__":
+#    print("Quick test...")
+#    df = survival_demographics()
+#    print("age_group dtype:", df["age_group"].dtype)
+#
+#    summary = group_survival_rates(df)
+#    print("\nSurvival summary head:\n", summary.head())
+#
+#    fare_summary = family_groups()
+#    print("\nFamily fare summary head:\n", fare_summary.head())
