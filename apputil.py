@@ -35,10 +35,10 @@ def group_survival_rates(df=None):
     if df is None:
         df = survival_demographics()
 
-    # Drop rows with missing Age
+    # Drop missing ages
     df = df.dropna(subset=["Age"])
 
-    # Correct age bins
+    # Age groups with correct labels
     age_bins = [0, 12, 19, 59, float("inf")]
     age_labels = ["Child", "Teen", "Adult", "Senior"]
 
@@ -46,41 +46,44 @@ def group_survival_rates(df=None):
         df["Age"],
         bins=age_bins,
         labels=age_labels,
-        right=True,  # Include upper bound
-        include_lowest=True
-    )
+        right=True,
+        include_lowest=True,
+        ordered=True
+    ).astype("category")  # Ensure Categorical dtype
 
     # Group by pclass, sex, age_group
-    summary_table = df.groupby(["pclass", "sex", "age_group"])["Survived"].agg(
+    summary = df.groupby(["pclass", "sex", "age_group"])["Survived"].agg(
         n_passengers="count",
         n_survivors="sum"
-    ).reset_index()
+    )
 
-    # All combinations
+    # Create all combinations
     pclass_vals = [1, 2, 3]
     sex_vals = ["male", "female"]
-    age_group_vals = ["Child", "Teen", "Adult", "Senior"]
+    age_group_vals = pd.Categorical(["Child", "Teen", "Adult", "Senior"],
+                                    categories=age_labels, ordered=True)
 
     full_index = pd.MultiIndex.from_product(
         [pclass_vals, sex_vals, age_group_vals],
         names=["pclass", "sex", "age_group"]
     )
 
-    summary_table = summary_table.set_index(["pclass", "sex", "age_group"])
-    summary_table = summary_table.reindex(full_index, fill_value=0)
+    # Reindex to include missing groups
+    summary = summary.reindex(full_index, fill_value=0)
 
-    # Ensure correct types
-    summary_table["n_passengers"] = summary_table["n_passengers"].astype(int)
-    summary_table["n_survivors"] = summary_table["n_survivors"].astype(int)
+    # Ensure integer type for Gradescope
+    summary["n_passengers"] = summary["n_passengers"].astype("int64")
+    summary["n_survivors"] = summary["n_survivors"].astype("int64")
 
     # Survival rate
-    summary_table["survival_rate"] = (summary_table["n_survivors"] / summary_table["n_passengers"].replace(0, 1)).round(3)
-    summary_table.loc[summary_table["n_passengers"] == 0, "survival_rate"] = 0
+    summary["survival_rate"] = (summary["n_survivors"] / summary["n_passengers"].replace(0, 1)).round(3)
+    summary.loc[summary["n_passengers"] == 0, "survival_rate"] = 0.0
 
-    summary_table = summary_table.reset_index()
-    summary_table = summary_table.sort_values(["pclass", "sex", "age_group"])
+    # Reset index and sort
+    summary = summary.reset_index()
+    summary = summary.sort_values(["pclass", "sex", "age_group"])
 
-    return summary_table
+    return summary
 
 
 def visualize_demographic():
@@ -270,3 +273,35 @@ def last_names():
     name_counts = df["last_name"].value_counts().sort_values(ascending=False)
 
     return name_counts
+
+# --- Pre-Check for Exercise 1 ---
+#from apputil import group_survival_rates
+#import pandas as pd
+#
+## Generate summary
+#summary = group_survival_rates()
+#
+# Check the specific Gradescope group
+#check_group = summary[
+#    (summary["pclass"] == 2) &
+#    (summary["sex"] == "female") &
+#    (summary["age_group"] == "Senior")
+#]
+#
+#print("=== Gradescope Check Group: 2nd class, female, Senior ===")
+#print(check_group)
+#print("\nExpected: n_passengers = 0, n_survivors = 0, survival_rate = 0.0")
+#
+## Check column dtypes
+#print("\n=== Column Dtypes ===")
+#print(summary.dtypes)
+#
+## Quick full summary check
+#print("\n=== Full summary head ===")
+#print(summary.head(12))
+#
+# Extra verification: ensure n_passengers and n_survivors are int64
+#assert summary["n_passengers"].dtype == "int64", "n_passengers is not int64"
+#assert summary["n_survivors"].dtype == "int64", "n_survivors is not int64"
+#assert isinstance(summary["age_group"].dtype, pd.CategoricalDtype), "age_group is not Categorical"
+#print("\n✅ All checks passed. Ready for Gradescope submission.")
