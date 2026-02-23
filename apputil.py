@@ -32,30 +32,34 @@ def survival_demographics():
 
 
 def group_survival_rates(df=None):
-    """
-    Groups the Titanic passengers by pclass, sex, and age_group.
-    Computes count of passengers, number of survivors, and survival rate.
-    Includes ALL possible combinations with n_passengers=0 for missing groups.
-    """
     if df is None:
         df = survival_demographics()
 
-    # Drop passengers with missing age_group
+    # Fill missing Age temporarily for pd.cut
+    df["Age_filled"] = df["Age"].fillna(-1)
+
+    # Define age groups, assign "Missing" for -1
+    age_bins = [-1, 12, 19, 59, float("inf")]
+    age_labels = ["Child", "Teen", "Adult", "Senior"]
+    df["age_group"] = pd.cut(
+        df["Age_filled"],
+        bins=age_bins,
+        labels=age_labels,
+        right=True,
+        include_lowest=True,
+        ordered=True
+    )
+
+    # Drop "Missing" rows
     df = df.dropna(subset=["age_group"])
 
     # Aggregate existing groups
-    summary_table = (
-        df.groupby(["pclass", "sex", "age_group"])["Survived"]
-        .agg(n_passengers="count", n_survivors="sum")
-        .reset_index()
-    )
+    summary_table = df.groupby(["pclass", "sex", "age_group"], observed=True)["Survived"].agg(
+        n_passengers="count",
+        n_survivors="sum"
+    ).reset_index()
 
-    # Calculate survival rate
-    summary_table["survival_rate"] = (
-        summary_table["n_survivors"] / summary_table["n_passengers"]
-    ).round(3)
-
-    # Force all possible combinations
+    # Create all combinations
     pclass_vals = [1, 2, 3]
     sex_vals = ["male", "female"]
     age_group_vals = ["Child", "Teen", "Adult", "Senior"]
@@ -65,21 +69,16 @@ def group_survival_rates(df=None):
         names=["pclass", "sex", "age_group"]
     )
 
-    # Reindex to include missing groups
     summary_table = summary_table.set_index(["pclass", "sex", "age_group"])
     summary_table = summary_table.reindex(full_index, fill_value=0)
 
-    # Ensure integer type for counts
+    # Ensure correct types
     summary_table["n_passengers"] = summary_table["n_passengers"].astype(int)
     summary_table["n_survivors"] = summary_table["n_survivors"].astype(int)
+    summary_table["survival_rate"] = (summary_table["n_survivors"] / summary_table["n_passengers"].replace(0, 1)).round(3)
+    summary_table.loc[summary_table["n_passengers"] == 0, "survival_rate"] = 0
 
-    # Fill survival_rate for empty groups
-    summary_table["survival_rate"] = summary_table["survival_rate"].fillna(0)
-
-    # Reset index to columns
     summary_table = summary_table.reset_index()
-
-    # Sort
     summary_table = summary_table.sort_values(["pclass", "sex", "age_group"])
 
     return summary_table
