@@ -1,13 +1,14 @@
 import pandas as pd
 import plotly.express as px
 
-# ----------------------------
+
 # Exercise 1: Survival Demographics
-# ----------------------------
+
 def survival_demographics():
     """
     Loads Titanic dataset, adds 'age_group', and returns a grouped summary table
-    by pclass, sex, and age_group including n_passengers, n_survivors, and survival_rate.
+    by pclass, sex, and age_group including n_passengers, n_survivors, and
+    survival_rate.
     """
     url = "https://raw.githubusercontent.com/leontoddjohnson/datasets/main/data/titanic.csv"
     df = pd.read_csv(url)
@@ -24,31 +25,31 @@ def survival_demographics():
         labels=age_labels,
         right=True,
         include_lowest=True,
-        ordered=True
+        ordered=True,
     ).astype("category")
 
     # Aggregate existing groups
     summary = df.groupby(["Pclass", "Sex", "age_group"])["Survived"].agg(
         n_passengers="count",
-        n_survivors="sum"
+        n_survivors="sum",
     )
 
     # Ensure all combinations exist
     pclass_vals = [1, 2, 3]
     sex_vals = ["male", "female"]
     age_group_vals = pd.Categorical(age_labels, categories=age_labels, ordered=True)
-
     full_index = pd.MultiIndex.from_product(
         [pclass_vals, sex_vals, age_group_vals],
-        names=["Pclass", "Sex", "age_group"]
+        names=["Pclass", "Sex", "age_group"],
     )
-
     summary = summary.reindex(full_index, fill_value=0)
 
     # Add survival_rate
     summary["n_passengers"] = summary["n_passengers"].astype("int64")
     summary["n_survivors"] = summary["n_survivors"].astype("int64")
-    summary["survival_rate"] = (summary["n_survivors"] / summary["n_passengers"].replace(0, 1)).round(3)
+    summary["survival_rate"] = (
+        summary["n_survivors"] / summary["n_passengers"].replace(0, 1)
+    ).round(3)
     summary.loc[summary["n_passengers"] == 0, "survival_rate"] = 0.0
 
     # Reset index and rename
@@ -66,13 +67,13 @@ def group_survival_rates(df=None):
     return survival_demographics()
 
 
-# ----------------------------
 # Exercise 2: Family Size and Fare
-# ----------------------------
+
 def family_groups():
     """
-    Loads Titanic dataset, adds 'family_size', and returns summary grouped by family_size
-    and pclass with fare statistics: n_passengers, avg_fare, min_fare, max_fare.
+    Loads Titanic dataset, adds 'family_size', and returns summary grouped by
+    family_size and pclass with fare statistics: n_passengers, avg_fare,
+    min_fare, max_fare.
     """
     url = "https://raw.githubusercontent.com/leontoddjohnson/datasets/main/data/titanic.csv"
     df = pd.read_csv(url)
@@ -85,13 +86,15 @@ def family_groups():
             n_passengers="count",
             avg_fare="mean",
             min_fare="min",
-            max_fare="max"
+            max_fare="max",
         )
         .reset_index()
     )
 
     summary = summary.rename(columns={"Pclass": "pclass"})
-    summary[["avg_fare", "min_fare", "max_fare"]] = summary[["avg_fare", "min_fare", "max_fare"]].round(2)
+    summary[["avg_fare", "min_fare", "max_fare"]] = summary[
+        ["avg_fare", "min_fare", "max_fare"]
+    ].round(2)
     summary = summary.sort_values(["pclass", "family_size"])
 
     return summary
@@ -119,9 +122,8 @@ def last_names():
     return name_counts
 
 
-# ----------------------------
-# Optional Visualization Functions
-# ----------------------------
+# Visualization Functions
+
 def visualize_demographic():
     summary = group_survival_rates()
     agg_summary = (
@@ -143,20 +145,40 @@ def visualize_demographic():
         color="sex",
         barmode="group",
         title="Survival Rate by Passenger Class and Sex",
-        labels={"pclass": "Passenger Class", "survival_pct": "Survival Rate (%)", "sex": "Sex"},
+        labels={
+            "pclass": "Passenger Class",
+            "survival_pct": "Survival Rate (%)",
+            "sex": "Sex",
+        },
         color_discrete_map={"female": "#D81B60", "male": "#1E88E5"},
         height=600,
     )
 
     for pclass in [1, 2, 3]:
-        female = agg_summary[(agg_summary["pclass"] == pclass) & (agg_summary["sex"] == "female")]
-        male = agg_summary[(agg_summary["pclass"] == pclass) & (agg_summary["sex"] == "male")]
+        female = agg_summary[
+            (agg_summary["pclass"] == pclass) & (agg_summary["sex"] == "female")
+        ]
+        male = agg_summary[
+            (agg_summary["pclass"] == pclass) & (agg_summary["sex"] == "male")
+        ]
         if not female.empty and not male.empty:
             f_rate = female["survival_pct"].values[0]
             m_rate = male["survival_pct"].values[0]
-            text = f"{round(f_rate / m_rate, 1)}x more likely" if m_rate > 0 else "Only females survived"
-            fig.add_annotation(x=pclass, y=max(f_rate, m_rate)+5, text=text, showarrow=True, arrowhead=1,
-                               ax=0, ay=-30, font=dict(size=12), bgcolor="white", bordercolor="gray", borderwidth=1)
+            text = f"{round(f_rate / m_rate, 1)}x more likely" if m_rate > 0 else \
+                "Only females survived"
+            fig.add_annotation(
+                x=pclass,
+                y=max(f_rate, m_rate) + 5,
+                text=text,
+                showarrow=True,
+                arrowhead=1,
+                ax=0,
+                ay=-30,
+                font=dict(size=12),
+                bgcolor="white",
+                bordercolor="gray",
+                borderwidth=1,
+            )
 
     return fig
 
@@ -172,7 +194,11 @@ def visualize_families():
         markers=True,
         facet_col="pclass",
         title="Average Ticket Fare by Family Size and Passenger Class",
-        labels={"family_size": "Family Size", "avg_fare": "Average Ticket Fare ($)", "pclass": "Passenger Class"},
+        labels={
+            "family_size": "Family Size",
+            "avg_fare": "Average Ticket Fare ($)",
+            "pclass": "Passenger Class",
+        },
         height=600,
         width=1000,
     )
